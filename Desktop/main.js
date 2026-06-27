@@ -14,10 +14,6 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../Mobile/www/index.html'));
 }
 
-ipcMain.on('desktop-log', (_event, message) => {
-    console.log(`[Desktop] ${message}`);
-});
-
 app.whenReady().then(() => {
     createWindow();
     app.on('activate', function () {
@@ -28,4 +24,10 @@ app.whenReady().then(() => {
 app.on('window-all-closed', function () {
     if (process.platform !== 'darwin')
         app.quit();
+});
+
+// API for communication with renderer process
+ipcMain.handle('desktop-show-message-box', async (_event, options) => {
+    const { dialog } = await import('electron');
+    await dialog.showMessageBox(options);
 });

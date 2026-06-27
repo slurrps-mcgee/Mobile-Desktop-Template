@@ -1,58 +1,22 @@
 import { Component } from '@angular/core';
-import { ElectronAPIService } from '../../services/electronAPI.service';
-import { Capacitor } from '@capacitor/core';
-import { IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/angular/standalone';
+import { IonHeader, IonToolbar, IonTitle, IonContent, IonButton } from '@ionic/angular/standalone';
+import { NotificationService } from 'src/app/services/NotificationService/Notification.Service';
+import { PlatformService } from 'src/app/services/platform.service';
 
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
-  imports: [IonHeader, IonToolbar, IonTitle, IonContent],
+  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonButton],
 })
 export class HomePage {
-  startupEnvironment = 'detecting...';
-  startupDetails = '';
+  platform = 'detecting...';
 
-  constructor(private electronAPI: ElectronAPIService) {
-    this.detectStartupEnvironment();
+  constructor(public notificationService: NotificationService, private platformService: PlatformService) {
+    this.platform = this.platformService.getPlatform();
   }
 
-  private detectStartupEnvironment(): void {
-
-    const userAgent = navigator.userAgent ?? '';
-    const isElectronUserAgent = /electron/i.test(userAgent);
-    const isDesktopElectron = this.electronAPI.isElectron() || isElectronUserAgent;
-
-    if (isDesktopElectron) {
-      const runtime = this.electronAPI.getRuntime();
-      this.startupEnvironment = 'desktop (electron)';
-      this.startupDetails = `platform=${runtime?.platform ?? 'unknown'} electron=${runtime?.electronVersion ?? 'unknown'}`;
-      this.electronAPI.logStartup(`App started in desktop environment. ${this.startupDetails}`);
-      console.log('[Startup] Desktop (Electron) environment detected.', {
-        runtime,
-        userAgent,
-      });
-      return;
-    }
-
-    const capacitorPlatform = Capacitor.getPlatform();
-    const isNative = Capacitor.isNativePlatform();
-
-    if (isNative) {
-      this.startupEnvironment = `mobile (${capacitorPlatform})`;
-      this.startupDetails = 'running in Capacitor native runtime';
-      console.log('[Startup] Mobile native environment detected.', {
-        capacitorPlatform,
-        userAgent,
-      });
-      return;
-    }
-
-    this.startupEnvironment = 'web browser (ionic)';
-    this.startupDetails = `platform=${capacitorPlatform}`;
-    console.log('[Startup] Web browser environment detected.', {
-      capacitorPlatform,
-      userAgent,
-    });
+  async showPlatformNotification(): Promise<void> {
+    await this.notificationService.alert('Info', `Current platform is ${this.platform}`);
   }
 }

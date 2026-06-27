@@ -14,8 +14,9 @@
   </ion-header>
 
   <div id="container">
-    <p><strong>Startup environment:</strong> {{ startupEnvironment }}</p>
-    <p><strong>Details:</strong> {{ startupDetails }}</p>
+    <p>{{ platform }}</p>
+    <ion-button (click)="showPlatformNotification()">Check Platform</ion-button>
+    <br>
     <strong>Ready to create an app?</strong>
     <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
   </div>

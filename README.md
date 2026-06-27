@@ -1,9 +1,21 @@
 # Mobile + Desktop Template
 
+A skeleton for a fully cross-platform application built on a single shared Angular + Ionic codebase targeting three platforms:
+
+| Platform | Stack | Directory |
+|----------|-------|-----------|
+| **Web** | Angular + Ionic (browser) | `Mobile/` |
+| **Mobile** | Angular + Ionic + Capacitor (Android / iOS) | `Mobile/` |
+| **Desktop** | Electron (loads the Ionic web build) | `Desktop/` |
+
+Platform-specific behaviour (e.g. notifications) is routed at runtime by `PlatformService`, which detects the current environment and delegates to the appropriate service implementation each service uses platformservice to determine where to route to such as NotificationService routing to either (`ElectronNotificationService`, `MobileNotificationService`) depending on the platform.
+
+---
+
 This repository includes:
 
-1. Mobile app in `Mobile` (Ionic + Angular + Capacitor)
-2. Desktop app in `Desktop` (Electron shell)
+1. Mobile/Web app in `Mobile/` (Angular + Ionic + Capacitor)
+2. Desktop app in `Desktop/` (Electron shell)
 
 ## Prerequisites
 
@@ -198,9 +210,110 @@ cd android
 	- Debug APK: `Mobile/android/app/build/outputs/apk/debug/`
 	- Release AAB: `Mobile/android/app/build/outputs/bundle/release/`
 
+## Adding Cross-Platform Services
+
+This template uses a **delegate pattern** — a single shared service routes calls to platform-specific implementations at runtime. Follow these steps to add a new cross-platform capability (e.g. storage, file access, share sheet).
+
+### 1. Create the platform-specific implementations
+
+**`Mobile/src/app/services/MyService/ElectronMy.Service.ts`** — Electron behaviour, communicating with the main process via IPC:
+
+```typescript
+import { Injectable } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class ElectronMyService {
+  async doSomething(value: string): Promise<void> {
+    if (!window.electronApi) throw new Error('electronApi bridge is not available');
+    await window.electronApi.doSomething(value);
+  }
+}
+```
+
+**`Mobile/src/app/services/MyService/MobileMy.Service.ts`** — Mobile/web behaviour using Capacitor plugins or Angular APIs:
+
+```typescript
+import { Injectable } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class MobileMyService {
+  async doSomething(value: string): Promise<void> {
+    // e.g. use a Capacitor plugin or browser API
+  }
+}
+```
+
+### 2. Create the shared facade service
+
+**`Mobile/src/app/services/MyService/My.Service.ts`** — injects `PlatformService` and delegates to the right implementation:
+
+```typescript
+import { Injectable } from '@angular/core';
+import { PlatformService } from '../platform.service';
+import { ElectronMyService } from './ElectronMy.Service';
+import { MobileMyService } from './MobileMy.Service';
+
+@Injectable({ providedIn: 'root' })
+export class MyService {
+  constructor(
+    private platformService: PlatformService,
+    private electron: ElectronMyService,
+    private mobile: MobileMyService
+  ) {}
+
+  async doSomething(value: string): Promise<void> {
+    switch (this.platformService.getPlatform()) {
+      case 'electron':
+        await this.electron.doSomething(value);
+        return;
+      default:
+        await this.mobile.doSomething(value);
+        return;
+    }
+  }
+}
+```
+
+`getPlatform()` returns one of: `'electron'` | `'android'` | `'ios'` | `'capacitor'` | `'cordova'` | `'hybrid'` | `'web'` | `'unknown'`
+
+The `default` branch handles all mobile and web targets.
+
+### 3. Expose the IPC handler in Electron (if needed)
+
+If the Electron implementation needs main-process APIs (filesystem, dialogs, etc.), add a handler in **`Desktop/main.js`**:
+
+```javascript
+ipcMain.handle('desktop-do-something', async (_event, value) => {
+  // use Node.js / Electron APIs here
+});
+```
+
+Then expose it through the preload bridge in **`Desktop/preload.cjs`**:
+
+```javascript
+contextBridge.exposeInMainWorld('electronApi', {
+  // ...existing entries...
+  doSomething: (value) => ipcRenderer.invoke('desktop-do-something', value),
+});
+```
+
+### 4. Inject the facade service in your component
+
+```typescript
+constructor(private myService: MyService) {}
+
+async handleAction(): Promise<void> {
+  await this.myService.doSomething('hello');
+}
+```
+
+Only ever inject the shared facade (`MyService`) in components — never the platform-specific implementations directly.
+
+---
+
 ## Useful Paths
 
 1. Mobile source: `Mobile/src`
 2. Mobile web build: `Mobile/www`
 3. Electron main process: `Desktop/main.js`
-4. Electron preload script: `Desktop/preload.js`
+4. Electron preload script: `Desktop/preload.cjs`

@@ -1,14 +1,9 @@
-export interface IRuntime {
-    isElectron: boolean;
-    platform: string;
-    electronVersion: string;
-}
+//Defines the interface for the Electron API bridge and extends the Window object to include it.
 export interface IElectronAPI {
-    isElectron: boolean;
-    logStartup: (message: string) => void;
-    getRuntime: () => IRuntime;
+    showMessageBox: (options: { type: string; title: string; message: string }) => Promise<void>;
 }
 
+//Declares the global Window interface to include the optional Electron API bridge.
 //Used to declare the desktop API available on the window object in an Electron environment.
 declare global {
   interface Window {

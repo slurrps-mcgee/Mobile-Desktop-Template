@@ -1,13 +1,7 @@
-import { contextBridge, ipcRenderer } from 'electron';
+// preload.cjs
+const { contextBridge, ipcRenderer } = require('electron');
 
-const runtime = {
-    isElectron: Boolean(process.versions?.electron),
-    platform: process.platform,
-    electronVersion: process.versions?.electron ?? '',
-};
-
+// Expose API to renderer process so that the renderer can call Electron main process methods safely
 contextBridge.exposeInMainWorld('electronApi', {
-    isElectron: runtime.isElectron,
-    logStartup: (message) => ipcRenderer.send('desktop-log', message),
-    getRuntime: () => runtime,
+    showMessageBox: (options) => ipcRenderer.invoke('desktop-show-message-box', options),
 });
